@@ -1,0 +1,94 @@
+services:
+  - type: web
+    name: zetter
+    env: node
+    plan: free
+    region: ohio
+    branch: main
+    
+    # Build Settings
+    buildCommand: npm install
+    startCommand: node server.js
+    
+    # Health Check
+    healthCheckPath: /health
+    initialDeployHook: true
+    
+    # Auto-Deploy
+    autoDeploy: true
+    
+    # Environment Variables (Set these in Render dashboard after deployment)
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://schoolchat_user:tukubhuyan123@cluster0.i386mxq.mongodb.net/?retryWrites=true&w=majority
+      - key: JWT_SECRET
+        value: NhekansioJAhsiwjhe93jshiskBHiehsyuJehiiebeheijenHiJbbekNtuku
+      # Remove the SMTP settings from here - set them in Render dashboard
+    
+    # Security Headers
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: X-XSS-Protection
+        value: 1; mode=block
+    
+    # CORS Settings
+    cors:
+      allowedOrigins:
+        - https://zetter-x.onrender.com
+        - https://zetter-xmn.onrender.com
+      allowCredentials: true
+      allowedMethods:
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+    
+    # Advanced Options
+    rootDir: ./
+    pullRequestPreviewsEnabled: false
+    
+    # Build Filter
+    buildFilter:
+      paths:
+        - server.js
+        - index.html
+        - package.json
+        - render.yaml
+    
+    # Disk
+    disk:
+      name: zetter-data
+      mountPath: /data
+      sizeGB: 1
+
+# Database
+databases:
+  - name: zetter-mongodb
+    plan: free
+    databaseName: zetter
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: everywhere
+
+# Cron Jobs
+jobs:
+  - type: cron
+    name: cleanup-old-otps
+    schedule: "0 */6 * * *"
+    startCommand: curl -X POST https://zetter-xmn.onrender.com/api/admin/cleanup-otps
+    plan: free
