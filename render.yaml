@@ -12,7 +12,6 @@ services:
     
     # Health Check
     healthCheckPath: /health
-    initialDeployHook: true
     
     # Auto-Deploy
     autoDeploy: true
@@ -39,12 +38,7 @@ services:
     cors:
       allowedOrigins:
         - https://zetter-x.onrender.com
-        - https://zetter-xmn.onrender.com
+        - http://localhost:3000
       allowCredentials: true
-    
-    # Build Filter
-    buildFilter:
-      paths:
-        - server.js
-        - package.json
-        - package-lock.json
+
+# No database section needed since we're using MongoDB Atlas

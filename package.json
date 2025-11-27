@@ -1,7 +1,7 @@
 {
   "name": "zetter",
   "version": "1.0.0",
-  "description": "Zetter - Twitter Clone",
+  "description": "Zetter - Twitter Clone with real-time features",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -15,17 +15,24 @@
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1",
     "helmet": "^7.1.0",
     "express-rate-limit": "^7.1.5",
     "compression": "^1.7.4",
-    "nodemailer": "^6.9.7",
-    "dotenv": "^16.3.1"
+    "nodemailer": "^6.9.7"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "keywords": [
+    "twitter",
+    "clone",
+    "social",
+    "media",
+    "real-time"
+  ],
+  "author": "Zetter Team",
+  "license": "MIT"
 }
