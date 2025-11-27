@@ -224,10 +224,16 @@ app.post('/api/auth/signup', async (req, res) => {
             return res.json({ success: false, error: 'Password must be at least 6 characters' });
         }
 
-        // Check if user exists
-        const existingUser = await db.collection('users').findOne({
-            $or: [{ username: username.toLowerCase() }, { email: email.toLowerCase() }]
-        });
+        // Check if user exists - FIXED VERSION
+const existingUser = await db.collection('users').findOne({
+    $or: [
+        { username: username.toLowerCase().trim() }, 
+        { email: email.toLowerCase().trim() }
+    ]
+});
+
+console.log('Signup attempt:', { username, email }); // Debug log
+console.log('Existing user check:', existingUser);   // Debug log
 
         if (existingUser) {
             return res.json({ success: false, error: 'Username or email already exists' });
