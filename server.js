@@ -980,4 +980,25 @@ async function startServer() {
     });
 }
 
+// TEMPORARY: Skip OTP for testing - REMOVE LATER
+await db.collection('users').updateOne(
+    { _id: result.insertedId },
+    { $set: { isVerified: true } }
+);
+
+const token = generateToken(newUser);
+
+res.json({
+    success: true,
+    message: 'Registration successful!',
+    token,
+    user: {
+        id: newUser._id,
+        username: newUser.username,
+        displayName: newUser.displayName,
+        avatar: newUser.avatar,
+        isVerified: true
+    }
+});
+
 startServer().catch(console.error);
