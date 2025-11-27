@@ -30,6 +30,9 @@ const CONFIG = {
 // Initialize Express
 const app = express();
 
+// ADD THIS LINE RIGHT HERE - Trust Render's proxy
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
