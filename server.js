@@ -207,51 +207,56 @@ app.get('/health', async (req, res) => {
     }
 });
 
-// User Registration with OTP
+// User Registration with OTP - FIXED VERSION
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
+
+        console.log('🔍 SIGNUP ATTEMPT:', { username, email, displayName });
 
         if (!username || !email || !password || !displayName) {
             return res.json({ success: false, error: 'All fields are required' });
         }
 
-        if (username.length < 3) {
-            return res.json({ success: false, error: 'Username must be at least 3 characters' });
-        }
+        // Clean the inputs
+        const cleanUsername = username.toLowerCase().trim();
+        const cleanEmail = email.toLowerCase().trim();
+        const cleanDisplayName = displayName.trim();
 
-        if (password.length < 6) {
-            return res.json({ success: false, error: 'Password must be at least 6 characters' });
-        }
+        console.log('🧹 CLEANED DATA:', { cleanUsername, cleanEmail, cleanDisplayName });
 
-        // Check if user exists - FIXED VERSION
-const existingUser = await db.collection('users').findOne({
-    $or: [
-        { username: username.toLowerCase().trim() }, 
-        { email: email.toLowerCase().trim() }
-    ]
-});
+        // Check if user exists - IMPROVED QUERY
+        const existingUser = await db.collection('users').findOne({
+            $or: [
+                { username: cleanUsername },
+                { email: cleanEmail }
+            ]
+        });
 
-console.log('Signup attempt:', { username, email }); // Debug log
-console.log('Existing user check:', existingUser);   // Debug log
+        console.log('📊 EXISTING USER CHECK:', existingUser);
 
         if (existingUser) {
-            return res.json({ success: false, error: 'Username or email already exists' });
+            if (existingUser.username === cleanUsername) {
+                return res.json({ success: false, error: 'Username already exists' });
+            }
+            if (existingUser.email === cleanEmail) {
+                return res.json({ success: false, error: 'Email already exists' });
+            }
         }
 
         // Generate OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user (not verified yet)
+        // Create user
         const user = {
-            username: username.toLowerCase(),
-            email: email.toLowerCase(),
+            username: cleanUsername,
+            email: cleanEmail,
             password: hashedPassword,
-            displayName: displayName.trim(),
+            displayName: cleanDisplayName,
             bio: '',
             avatar: '👤',
             isVerified: false,
@@ -262,22 +267,29 @@ console.log('Existing user check:', existingUser);   // Debug log
             role: 'user'
         };
 
+        console.log('👤 CREATING USER:', user);
+
         const result = await db.collection('users').insertOne(user);
         const newUser = await db.collection('users').findOne({ _id: result.insertedId });
+
+        console.log('✅ USER CREATED:', newUser._id);
 
         // Store OTP
         await db.collection('otps').insertOne({
             userId: result.insertedId,
-            email: email.toLowerCase(),
+            email: cleanEmail,
             code: otpCode,
             expires: otpExpiry,
             attempts: 0
         });
 
-        // Send OTP email
-        await sendOTP(email, otpCode);
+        console.log('📧 OTP STORED:', otpCode);
 
-        // Generate temporary token (limited access until verified)
+        // Send OTP email
+        const emailSent = await sendOTP(email, otpCode);
+        console.log('📨 EMAIL SENT:', emailSent);
+
+        // Generate temporary token
         const tempToken = generateToken(newUser);
 
         res.json({
@@ -294,8 +306,11 @@ console.log('Existing user check:', existingUser);   // Debug log
         });
 
     } catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({ success: false, error: 'Registration failed' });
+        console.error('❌ SIGNUP ERROR:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Registration failed: ' + error.message 
+        });
     }
 });
 
