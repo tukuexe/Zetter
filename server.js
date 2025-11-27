@@ -40,7 +40,7 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://your-app.onrender.com'],
+    origin: ['http://localhost:3000', 'https://zetter-x.onrender.com'],
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
