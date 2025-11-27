@@ -15,7 +15,7 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const CONFIG = {
-    MONGODB_URI: process.env.MONGODB_URI || "mongodb+srv://schoolchat_user:tukubhuyan123@cluster0.i386mxq.mongodb.net/?retryWrites=true&w=majority",
+    MONGODB_URI: process.env.MONGODB_URI || "mongodb+srv://schoolchat_user:tukubhuyan123@cluster0.i386mxq.mongodb.net/?appName=Cluster0",
     JWT_SECRET: process.env.JWT_SECRET || "ZetterSecureJWTKey_2024@SuperSafe!Token_ForTwitterClone#Encryption$MegaStrong",
     PORT: process.env.PORT || 3000,
     
