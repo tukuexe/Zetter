@@ -78,7 +78,7 @@ async function connectDB() {
         console.log('✅ MongoDB Connected');
         
         // Create admin user if not exists
-        await createAdminUser();
+        // await createAdminUser();
         
     } catch (error) {
         console.error('❌ MongoDB connection failed:', error);
