@@ -41,7 +41,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, '.'))); // Serve from current directory
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -938,9 +938,9 @@ async function createNotification(userId, type, fromUserId, tweetId = null) {
     }
 }
 
-// Serve Frontend
+// Serve Frontend - FIXED: Serve from current directory
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Error Handling
