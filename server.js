@@ -15,11 +15,9 @@ const __dirname = path.dirname(__filename);
 
 // Configuration
 const CONFIG = {
-    MONGODB_URI: process.env.MONGODB_URI || "mongodb+srv://schoolchat_user:tukubhuyan123@cluster0.i386mxq.mongodb.net/?appName=Cluster0",
+    MONGODB_URI: process.env.MONGODB_URI || "mongodb+srv://schoolchat_user:tukubhuyan123@cluster0.i386mxq.mongodb.net/?retryWrites=true&w=majority",
     JWT_SECRET: process.env.JWT_SECRET || "ZetterSecureJWTKey_2024@SuperSafe!Token_ForTwitterClone#Encryption$MegaStrong",
     PORT: process.env.PORT || 3000,
-    
-    // Email OTP Configuration
     SMTP_HOST: process.env.SMTP_HOST || "smtp.gmail.com",
     SMTP_PORT: process.env.SMTP_PORT || 587,
     SMTP_USER: process.env.SMTP_USER || "",
@@ -29,7 +27,7 @@ const CONFIG = {
 // Initialize Express
 const app = express();
 
-// Trust Render's proxy
+// Trust proxy
 app.set('trust proxy', 1);
 
 // Middleware
@@ -43,7 +41,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(__dirname, '.')));
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -58,7 +56,7 @@ let db, client;
 
 async function connectDB() {
     try {
-        console.log('🔄 Connecting to MongoDB...');
+        console.log('Connecting to MongoDB...');
         client = new MongoClient(CONFIG.MONGODB_URI, {
             serverApi: { version: ServerApiVersion.v1, strict: true, deprecationErrors: true },
             maxPoolSize: 50
@@ -73,15 +71,13 @@ async function connectDB() {
         await db.collection('tweets').createIndex({ userId: 1 });
         await db.collection('tweets').createIndex({ hashtags: 1 });
         await db.collection('follows').createIndex({ followerId: 1, followingId: 1 }, { unique: true });
-        await db.collection('otps').createIndex({ expires: 1 }, { expireAfterSeconds: 600 }); // Auto-delete OTPs after 10 min
+        await db.collection('otps').createIndex({ expires: 1 }, { expireAfterSeconds: 600 });
         
-        console.log('✅ MongoDB Connected');
-        
-        // Create admin user if not exists
+        console.log('MongoDB Connected');
         await createAdminUser();
         
     } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        console.error('MongoDB connection failed:', error);
         process.exit(1);
     }
 }
@@ -97,7 +93,7 @@ async function createAdminUser() {
                 password: hashedPassword,
                 displayName: 'Administrator',
                 bio: 'System Administrator',
-                avatar: '👑',
+                avatar: 'A',
                 isVerified: true,
                 followersCount: 0,
                 followingCount: 0,
@@ -105,10 +101,10 @@ async function createAdminUser() {
                 joinedDate: new Date(),
                 role: 'admin'
             });
-            console.log('✅ Admin user created');
+            console.log('Admin user created');
         }
     } catch (error) {
-        console.log('ℹ️ Admin user already exists');
+        console.log('Admin user already exists');
     }
 }
 
@@ -158,8 +154,8 @@ async function authenticate(req, res, next) {
 async function sendOTP(email, otpCode) {
     try {
         if (!CONFIG.SMTP_USER || !CONFIG.SMTP_PASS) {
-            console.log('📧 OTP would be sent to:', email, 'Code:', otpCode);
-            return true; // Simulate success in development
+            console.log('OTP would be sent to:', email, 'Code:', otpCode);
+            return true;
         }
 
         const transporter = nodemailer.createTransport({
@@ -193,24 +189,24 @@ async function sendOTP(email, otpCode) {
     }
 }
 
-// ===== ROUTES =====
+// ===== API ROUTES =====
 
 // Health Check
-app.get('/health', async (req, res) => {
+app.get('/api/health', async (req, res) => {
     try {
         await db.collection('users').findOne({});
         res.json({
-            status: '✅ Healthy',
-            version: '1.0.0',
+            status: 'Healthy',
+            version: '2.0.0',
             database: 'MongoDB',
             uptime: process.uptime()
         });
     } catch (error) {
-        res.status(500).json({ status: '❌ Unhealthy', error: error.message });
+        res.status(500).json({ status: 'Unhealthy', error: error.message });
     }
 });
 
-// User Registration with OTP
+// Authentication Routes
 app.post('/api/auth/signup', async (req, res) => {
     try {
         const { username, email, password, displayName } = req.body;
@@ -219,12 +215,10 @@ app.post('/api/auth/signup', async (req, res) => {
             return res.json({ success: false, error: 'All fields are required' });
         }
 
-        // Clean the inputs
         const cleanUsername = username.toLowerCase().trim();
         const cleanEmail = email.toLowerCase().trim();
         const cleanDisplayName = displayName.trim();
 
-        // Check if user exists
         const existingUser = await db.collection('users').findOne({
             $or: [
                 { username: cleanUsername },
@@ -241,21 +235,17 @@ app.post('/api/auth/signup', async (req, res) => {
             }
         }
 
-        // Generate OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
-
-        // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user
         const user = {
             username: cleanUsername,
             email: cleanEmail,
             password: hashedPassword,
             displayName: cleanDisplayName,
             bio: '',
-            avatar: '👤',
+            avatar: cleanDisplayName.charAt(0).toUpperCase(),
             isVerified: false,
             followersCount: 0,
             followingCount: 0,
@@ -267,7 +257,6 @@ app.post('/api/auth/signup', async (req, res) => {
         const result = await db.collection('users').insertOne(user);
         const newUser = await db.collection('users').findOne({ _id: result.insertedId });
 
-        // Store OTP
         await db.collection('otps').insertOne({
             userId: result.insertedId,
             email: cleanEmail,
@@ -276,10 +265,7 @@ app.post('/api/auth/signup', async (req, res) => {
             attempts: 0
         });
 
-        // Send OTP email
         await sendOTP(email, otpCode);
-
-        // Generate temporary token
         const tempToken = generateToken(newUser);
 
         res.json({
@@ -296,15 +282,11 @@ app.post('/api/auth/signup', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ SIGNUP ERROR:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Registration failed' 
-        });
+        console.error('Signup error:', error);
+        res.status(500).json({ success: false, error: 'Registration failed' });
     }
 });
 
-// Verify OTP
 app.post('/api/auth/verify-otp', async (req, res) => {
     try {
         const { email, otpCode } = req.body;
@@ -334,13 +316,11 @@ app.post('/api/auth/verify-otp', async (req, res) => {
             return res.json({ success: false, error: 'Invalid OTP code' });
         }
 
-        // OTP is valid - verify user
         await db.collection('users').updateOne(
             { _id: otpRecord.userId },
             { $set: { isVerified: true } }
         );
 
-        // Remove used OTP
         await db.collection('otps').deleteOne({ _id: otpRecord._id });
 
         const user = await db.collection('users').findOne({ _id: otpRecord.userId });
@@ -367,7 +347,6 @@ app.post('/api/auth/verify-otp', async (req, res) => {
     }
 });
 
-// Resend OTP
 app.post('/api/auth/resend-otp', async (req, res) => {
     try {
         const { email } = req.body;
@@ -381,14 +360,10 @@ app.post('/api/auth/resend-otp', async (req, res) => {
             return res.json({ success: false, error: 'Email already verified' });
         }
 
-        // Generate new OTP
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-        // Remove old OTPs
         await db.collection('otps').deleteMany({ email: email.toLowerCase() });
-
-        // Store new OTP
         await db.collection('otps').insertOne({
             userId: user._id,
             email: email.toLowerCase(),
@@ -397,7 +372,6 @@ app.post('/api/auth/resend-otp', async (req, res) => {
             attempts: 0
         });
 
-        // Send OTP email
         await sendOTP(email, otpCode);
 
         res.json({
@@ -411,7 +385,6 @@ app.post('/api/auth/resend-otp', async (req, res) => {
     }
 });
 
-// User Login
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -461,7 +434,6 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-// Get Current User
 app.get('/api/auth/me', authenticate, async (req, res) => {
     try {
         res.json({
@@ -484,9 +456,7 @@ app.get('/api/auth/me', authenticate, async (req, res) => {
     }
 });
 
-// ===== TWEET ROUTES =====
-
-// Create Tweet
+// Tweet Routes
 app.post('/api/tweets', authenticate, async (req, res) => {
     try {
         const { content, replyTo } = req.body;
@@ -521,13 +491,11 @@ app.post('/api/tweets', authenticate, async (req, res) => {
         const result = await db.collection('tweets').insertOne(tweet);
         const newTweet = await db.collection('tweets').findOne({ _id: result.insertedId });
 
-        // Update user's tweet count
         await db.collection('users').updateOne(
             { _id: req.user._id },
             { $inc: { tweetsCount: 1 } }
         );
 
-        // Create notifications for mentions
         for (const mention of tweet.mentions) {
             const mentionedUser = await db.collection('users').findOne({ username: mention.slice(1) });
             if (mentionedUser && mentionedUser._id.toString() !== req.user._id.toString()) {
@@ -546,23 +514,21 @@ app.post('/api/tweets', authenticate, async (req, res) => {
     }
 });
 
-// Get Home Timeline
 app.get('/api/tweets/timeline', authenticate, async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
 
-        // Get users that current user follows
         const following = await db.collection('follows').find({
             followerId: req.user._id
         }).toArray();
 
         const followingIds = following.map(f => f.followingId);
-        followingIds.push(req.user._id); // Include own tweets
+        followingIds.push(req.user._id);
 
         const tweets = await db.collection('tweets').find({
             userId: { $in: followingIds },
-            replyTo: null // Exclude replies from timeline
+            replyTo: null
         })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
@@ -585,7 +551,6 @@ app.get('/api/tweets/timeline', authenticate, async (req, res) => {
     }
 });
 
-// Get Tweet by ID
 app.get('/api/tweets/:id', authenticate, async (req, res) => {
     try {
         const tweet = await db.collection('tweets').findOne({
@@ -596,13 +561,11 @@ app.get('/api/tweets/:id', authenticate, async (req, res) => {
             return res.json({ success: false, error: 'Tweet not found' });
         }
 
-        // Increment view count
         await db.collection('tweets').updateOne(
             { _id: tweet._id },
             { $inc: { viewCount: 1 } }
         );
 
-        // Get replies
         const replies = await db.collection('tweets').find({
             replyTo: req.params.id
         })
@@ -623,7 +586,6 @@ app.get('/api/tweets/:id', authenticate, async (req, res) => {
     }
 });
 
-// Like/Unlike Tweet
 app.post('/api/tweets/:id/like', authenticate, async (req, res) => {
     try {
         const tweet = await db.collection('tweets').findOne({
@@ -637,7 +599,6 @@ app.post('/api/tweets/:id/like', authenticate, async (req, res) => {
         const hasLiked = tweet.likes.includes(req.user._id.toString());
 
         if (hasLiked) {
-            // Unlike
             await db.collection('tweets').updateOne(
                 { _id: tweet._id },
                 { 
@@ -646,7 +607,6 @@ app.post('/api/tweets/:id/like', authenticate, async (req, res) => {
                 }
             );
         } else {
-            // Like
             await db.collection('tweets').updateOne(
                 { _id: tweet._id },
                 { 
@@ -655,7 +615,6 @@ app.post('/api/tweets/:id/like', authenticate, async (req, res) => {
                 }
             );
 
-            // Create notification (if not own tweet)
             if (tweet.userId.toString() !== req.user._id.toString()) {
                 await createNotification(tweet.userId, 'like', req.user._id, tweet._id);
             }
@@ -672,9 +631,7 @@ app.post('/api/tweets/:id/like', authenticate, async (req, res) => {
     }
 });
 
-// ===== USER ROUTES =====
-
-// Follow/Unfollow User
+// User Routes
 app.post('/api/users/:username/follow', authenticate, async (req, res) => {
     try {
         const targetUser = await db.collection('users').findOne({
@@ -695,13 +652,11 @@ app.post('/api/users/:username/follow', authenticate, async (req, res) => {
         });
 
         if (isFollowing) {
-            // Unfollow
             await db.collection('follows').deleteOne({
                 followerId: req.user._id,
                 followingId: targetUser._id
             });
 
-            // Update counts
             await db.collection('users').updateOne(
                 { _id: req.user._id },
                 { $inc: { followingCount: -1 } }
@@ -712,14 +667,12 @@ app.post('/api/users/:username/follow', authenticate, async (req, res) => {
             );
 
         } else {
-            // Follow
             await db.collection('follows').insertOne({
                 followerId: req.user._id,
                 followingId: targetUser._id,
                 createdAt: new Date()
             });
 
-            // Update counts
             await db.collection('users').updateOne(
                 { _id: req.user._id },
                 { $inc: { followingCount: 1 } }
@@ -729,7 +682,6 @@ app.post('/api/users/:username/follow', authenticate, async (req, res) => {
                 { $inc: { followersCount: 1 } }
             );
 
-            // Create notification
             await createNotification(targetUser._id, 'follow', req.user._id);
         }
 
@@ -744,7 +696,6 @@ app.post('/api/users/:username/follow', authenticate, async (req, res) => {
     }
 });
 
-// Get User Profile
 app.get('/api/users/:username', authenticate, async (req, res) => {
     try {
         const user = await db.collection('users').findOne({
@@ -755,13 +706,11 @@ app.get('/api/users/:username', authenticate, async (req, res) => {
             return res.json({ success: false, error: 'User not found' });
         }
 
-        // Check if current user follows this user
         const isFollowing = await db.collection('follows').findOne({
             followerId: req.user._id,
             followingId: user._id
         });
 
-        // Get user's tweets
         const tweets = await db.collection('tweets').find({
             userId: user._id,
             replyTo: null
@@ -794,10 +743,8 @@ app.get('/api/users/:username', authenticate, async (req, res) => {
     }
 });
 
-// Get User Suggestions (Who to follow)
 app.get('/api/users/suggestions', authenticate, async (req, res) => {
     try {
-        // Get random users (excluding current user and already followed)
         const following = await db.collection('follows').find({
             followerId: req.user._id
         }).toArray();
@@ -824,7 +771,6 @@ app.get('/api/users/suggestions', authenticate, async (req, res) => {
 
     } catch (error) {
         console.error('Suggestions error:', error);
-        // Return mock suggestions if error occurs
         res.json({
             success: true,
             users: [
@@ -832,7 +778,7 @@ app.get('/api/users/suggestions', authenticate, async (req, res) => {
                     _id: '1', 
                     displayName: 'Tech News', 
                     username: 'technews', 
-                    avatar: '📰', 
+                    avatar: 'T', 
                     followersCount: 1200000,
                     bio: 'Latest technology news and updates'
                 },
@@ -840,7 +786,7 @@ app.get('/api/users/suggestions', authenticate, async (req, res) => {
                     _id: '2', 
                     displayName: 'Sports Center', 
                     username: 'sports', 
-                    avatar: '⚽', 
+                    avatar: 'S', 
                     followersCount: 890000,
                     bio: 'Sports news and highlights'
                 },
@@ -848,7 +794,7 @@ app.get('/api/users/suggestions', authenticate, async (req, res) => {
                     _id: '3', 
                     displayName: 'Music World', 
                     username: 'music', 
-                    avatar: '🎵', 
+                    avatar: 'M', 
                     followersCount: 2100000,
                     bio: 'Your daily music updates'
                 }
@@ -857,7 +803,6 @@ app.get('/api/users/suggestions', authenticate, async (req, res) => {
     }
 });
 
-// Update User Profile
 app.put('/api/users/profile', authenticate, async (req, res) => {
     try {
         const { displayName, bio, avatar } = req.body;
@@ -891,9 +836,7 @@ app.put('/api/users/profile', authenticate, async (req, res) => {
     }
 });
 
-// ===== NOTIFICATION ROUTES =====
-
-// Get Notifications
+// Notification Routes
 app.get('/api/notifications', authenticate, async (req, res) => {
     try {
         const notifications = await db.collection('notifications').find({
@@ -903,7 +846,6 @@ app.get('/api/notifications', authenticate, async (req, res) => {
         .limit(50)
         .toArray();
 
-        // Mark as read
         await db.collection('notifications').updateMany(
             { userId: req.user._id, isRead: false },
             { $set: { isRead: true } }
@@ -920,9 +862,7 @@ app.get('/api/notifications', authenticate, async (req, res) => {
     }
 });
 
-// ===== SEARCH ROUTES =====
-
-// Search Users and Tweets
+// Search Routes
 app.get('/api/search', authenticate, async (req, res) => {
     try {
         const { q, type = 'all' } = req.query;
@@ -973,15 +913,14 @@ app.get('/api/search', authenticate, async (req, res) => {
 });
 
 // ===== HELPER FUNCTIONS =====
-
 function extractHashtags(text) {
     const hashtags = text.match(/#\w+/g) || [];
-    return [...new Set(hashtags)]; // Remove duplicates
+    return [...new Set(hashtags)];
 }
 
 function extractMentions(text) {
     const mentions = text.match(/@\w+/g) || [];
-    return [...new Set(mentions)]; // Remove duplicates
+    return [...new Set(mentions)];
 }
 
 async function createNotification(userId, type, fromUserId, tweetId = null) {
@@ -1001,7 +940,7 @@ async function createNotification(userId, type, fromUserId, tweetId = null) {
 
 // Serve Frontend
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Error Handling
@@ -1010,7 +949,6 @@ app.use((error, req, res, next) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
 });
 
-// 404 Handler
 app.use((req, res) => {
     res.status(404).json({ success: false, error: 'Endpoint not found' });
 });
@@ -1021,15 +959,14 @@ async function startServer() {
     
     app.listen(CONFIG.PORT, () => {
         console.log(`
-🐦 Zetter Server Started
-📍 Port: ${CONFIG.PORT}
-🗃️  Database: MongoDB Atlas
-📧 OTP: ${CONFIG.SMTP_USER ? 'Enabled' : 'Development mode'}
-🚀 Ready to tweet!
+Zetter Server Started
+Port: ${CONFIG.PORT}
+Database: MongoDB Atlas
+OTP: ${CONFIG.SMTP_USER ? 'Enabled' : 'Development mode'}
+Ready to tweet!
         `);
     });
 
-    // Graceful shutdown
     process.on('SIGTERM', async () => {
         console.log('SIGTERM received, shutting down gracefully');
         await client.close();

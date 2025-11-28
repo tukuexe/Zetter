@@ -6,23 +6,16 @@ services:
     region: ohio
     branch: main
     
-    # Build Settings
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: npm start
     
-    # Health Check
-    healthCheckPath: /health
-    
-    # Auto-Deploy
+    healthCheckPath: /api/health
     autoDeploy: true
     
-    # Environment Variables (Set these in Render dashboard)
     envVars:
       - key: NODE_ENV
         value: production
-      # Add MONGODB_URI, JWT_SECRET, SMTP_USER, SMTP_PASS in Render dashboard
     
-    # Security Headers
     headers:
       - path: /*
         name: X-Frame-Options
@@ -34,11 +27,8 @@ services:
         name: Referrer-Policy
         value: strict-origin-when-cross-origin
     
-    # CORS Settings
     cors:
       allowedOrigins:
         - https://zetter-x.onrender.com
         - http://localhost:3000
       allowCredentials: true
-
-# No database section needed since we're using MongoDB Atlas
